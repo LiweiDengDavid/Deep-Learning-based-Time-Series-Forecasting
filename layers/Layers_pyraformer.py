@@ -1,12 +1,10 @@
 from torch.functional import align_tensors
 import torch.nn as nn
-
 from torch.nn.modules.linear import Linear
 from layers.SubLayers import MultiHeadAttention, PositionwiseFeedForward
 import torch
 from layers.embed_pyraformer import DataEmbedding, CustomEmbedding
 import math
-
 
 
 def get_mask(input_size, window_size, inner_size, device):

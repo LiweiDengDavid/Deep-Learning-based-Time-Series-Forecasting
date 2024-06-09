@@ -38,14 +38,12 @@ class TFT(nn.Module):
 
         self.history_embeddings = nn.ModuleList()
         for i in range(self.input_size):
-            # nn.Embedding就是对于输入矩阵的每一个需要编码的向量进行编码，第一个参数不太清楚作用，第二个参数是编码后的向量维度大小
             # embedding = nn.Embedding(self.input_size,self.hidden_layer_size)
             embedding = nn.Linear(1,160)
             self.history_embeddings.append(embedding)
 
         self.future_embeddings = nn.ModuleList()
         for i in range(4):
-            # nn.Embedding就是对于输入矩阵的每一个需要编码的向量进行编码，第一个参数不太清楚作用，第二个参数是编码后的向量维度大小
             embedding = nn.Linear(1,160)
             self.future_embeddings.append(embedding)
 
@@ -200,7 +198,6 @@ class TFT(nn.Module):
             static_inputs = None
 
         obs_inputs = torch.stack([
-            # Linear 特征维度 1 --> 160
             self.time_varying_embedding_layer(regular_inputs[Ellipsis, i:i + 1].float())
             for i in self._input_obs_loc
         ], dim=-1)
@@ -221,7 +218,6 @@ class TFT(nn.Module):
 
         known_combined_layer = torch.stack(known_regular_inputs + known_categorical_inputs, dim=-1)
 
-        # known_combined_layer[64,192,160,3]是三个[64,192,160]拼接起来的
         return unknown_inputs, known_combined_layer, obs_inputs, static_inputs
 
     def get_decoder_mask(self, self_attn_inputs):

@@ -2,7 +2,6 @@ from torch import nn
 import torch
 from layers.gated_residual_network import GatedResidualNetwork
 
-
 class StaticCombineAndMask(nn.Module):
     def __init__(self, input_size, num_static, hidden_layer_size, dropout_rate, additional_context=None,
                  use_time_distributed=False, batch_first=True):

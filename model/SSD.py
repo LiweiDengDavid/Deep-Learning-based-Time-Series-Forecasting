@@ -32,7 +32,7 @@ class SSD(nn.Module):
         self.seqlen = args.seq_len
         self.prelen = args.pred_len
         self.d_feature = args.d_feature
-        self.d_model = args.d_model - args.d_model%args.n_heads  # 防止维度不能整除heads
+        self.d_model = args.d_model - args.d_model%args.n_heads  # Preventing dimensions from not dividing heads
         self.s = args.d_dimension
         self.device = args.device
         self.past_dimension = args.d_mark
@@ -69,22 +69,21 @@ class SSD(nn.Module):
         ).to(self.device)
 
         self.tao = torch.ones((self.s, self.s)).to(self.device)
-        self.tao[:, 0] = 0  # 第一列为0
-        self.tao[:, -1] = 0  # 最后一列为0
-        self.tao[1] *= -1  # 第二行都乘以负一
-        self.tao[0] = 0  # 第一行全为0
-        self.tao[0, 0] = 1  # 第一行第一列的元素为1
+        self.tao[:, 0] = 0
+        self.tao[:, -1] = 0
+        self.tao[1] *= -1
+        self.tao[0] = 0
+        self.tao[0, 0] = 1
         self.tao[2:, 1:-1] = torch.eye(self.s - 2)
 
         self.z = torch.zeros((1, self.s))
-        self.z[:, :2] = 1  # 前两个元素为1
+        self.z[:, :2] = 1
 
         self.batch_proceeded = None
 
     def forward(self, batch_x, batch_x_mark, batch_y, batch_y_mark):
-        # 模型输入：bs,seqlen,dim,5 ,bs,prelen,dim,4  模型输出 bs prelen,dim \
-
-        # x shape:bs,seqlen,dim,5  5代表一维是历史数据，其他维是和时间的相关变量
+        # model input: bs,seqlen,dim,5 ,bs,prelen,dim,4 model output bs prelen,dim
+        # x shape:bs,seqlen,dim,5 5 means that one dimension is historical data and the other dimensions are time-dependent variables.
         # covariable shape :bs,prelen,dim,4
         for i in range(batch_x.shape[-1]):
             if i == 0:
@@ -130,7 +129,7 @@ class SSD(nn.Module):
             if self.batch_proceeded == None:
                 self.batch_proceeded = True
                 self.tao = torch.cat(a.shape[0] * a.shape[1] * [self.tao], dim=0) \
-                    .view(a.shape[0], a.shape[1], self.s, self.s).to(self.device)  # 批量化处理，便于后续矩阵相乘
+                    .view(a.shape[0], a.shape[1], self.s, self.s).to(self.device)  # Batch processing for subsequent matrix multiplication
                 self.z = torch.cat(a.shape[0] * a.shape[1] * [self.z], dim=0) \
                     .view(a.shape[0], a.shape[1], self.s, 1).to(self.device)
 

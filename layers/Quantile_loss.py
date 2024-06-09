@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 
+
 class QuantileLoss(nn.Module):
 
     def __init__(self, quantiles):

@@ -16,7 +16,6 @@ from layers.utils import get_filter
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-
 class MultiWaveletTransform(nn.Module):
     """
     1D multiwavelet block.

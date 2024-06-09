@@ -73,25 +73,10 @@ class DeepSSM(nn.Module):
 
     def kalman_step(self,F,H,w,b,v,l,e):
 
-        # l = torch.matmul(F,l)
-        # P = torch.matmul(torch.matmul(F,P),F.permute(0,1,3,2))+Q
-        # z_pred = torch.matmul(H,l) + b
-        # S  = torch.matmul(torch.matmul(H,P),H.permute(0,1,3,2))+R
-        # print(torch.min(self.activation(S)))
-        # z = torch.distributions.Normal(z_pred,self.activation(S)).sample()
-        # # log_porb = torch.distributions.Normal(z_pred,S).log_prob()
-        #
-        # K = torch.matmul(torch.matmul(P,H.permute(0,1,3,2)),torch.linalg.inv(S))
-        # y = z-z_pred
-        # l = l+torch.matmul(K,y)
-        # P = P-torch.matmul(torch.matmul(K,H),P)
-
         l = torch.matmul(F,l) + w*e
         z = torch.matmul(H,l) + b + v*e
 
         return l,z
-
-
 
 
     def forward(self, x_enc, x_mark_enc, x_dec, x_mark_dec,
@@ -122,17 +107,8 @@ class DeepSSM(nn.Module):
         mu_test = torch.zeros_like(mu)
 
         l_0 = torch.distributions.Normal(mu_test,sigma_test).sample()
-
-        # mu_e = torch.zeros_like(mu)
-        # sigma_e = torch.ones_like(sigma)
-
         e = torch.distributions.Normal(0,1).sample()
-        # Q = torch.matmul(w,w.permute(0,1,3,2))
-        # R = torch.matmul(v,v.permute(0,1,3,2))
 
-        # l = self.dense_l_prior(outputs[:,0,:]).unsqueeze(-1).unsqueeze(1)
-        # P = torch.diag_embed(self.activation(self.dense_P_prior(outputs[:,0,:]))).unsqueeze(1)
-        # parameters = [F,H,b,Q,R,l,P]
 
         l = l_0
         samples = []

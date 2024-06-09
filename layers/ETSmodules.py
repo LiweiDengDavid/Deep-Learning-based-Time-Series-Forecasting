@@ -14,7 +14,6 @@ class ETSEmbedding(nn.Module):
         x = self.conv(x.permute(0,2,1))[..., :-2]
         return self.dropout(x.transpose(1,2))
 
-
 class Feedforward(nn.Module):
     def __init__(self, d_model, dim_feedforward, dropout=0.1, activation='sigmoid'):
         # Implementation of Feedforward model

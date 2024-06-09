@@ -14,14 +14,14 @@ from torch.optim import Optimizer
 class NBeatsNet(nn.Module):
     def __init__(self,args):
         super(NBeatsNet, self).__init__()
-            # stack_types = (TREND_BLOCK, SEASONALITY_BLOCK),
-            # nb_blocks_per_stack,  # 先趋势堆栈，然后季节性堆栈，最后还有一个全连接堆栈
-            # pred_len,  # 预测长度
-            # seq_len,  # 输入的时间长度，也是每个block输出的复原学到的输入的长度
-            # thetas_dim,  # 每个stack里面的theta的维度
-            # # 相当于theta^(f,s)维度是4*N,theta^(f,s)维度是8*N，全连接变成4*N和8*N。
-            # share_weights_in_stack,  # 是否共享权重（每个stack里面的g^b和g^f里面的全连接权重共享）
-            # hidden_layer_units,  # block里面的4个FC最后弄出来的维度
+            # stack_types = (TREND_BLOCK, SEASONALITY_BLOCK), # nb_blocks_per_stack, # first the trending stack, then the seasonal stack, and finally a fully connected stack.
+            # nb_blocks_per_stack, # first trending stack, then seasonal stack, and finally a fully connected stack
+            # pred_len, # pred length
+            # seq_len, # length of the input, also the length of the recovered learned input output by each block
+            # thetas_dim, # the dimension of theta inside each stack
+            # Equivalent to theta^(f,s) dimension is 4*N, theta^(f,s) dimension is 8*N, fully connected becomes 4*N and 8*N.
+            # share_weights_in_stack, # whether to share weights (g^b inside each stack and fully connected weights inside g^f are shared)
+            # hidden_layer_units, # dimensions that the 4 FCs inside the block end up with
             # nb_harmonics = None
         SEASONALITY_BLOCK = 'seasonality'
         TREND_BLOCK = 'trend'
@@ -30,7 +30,7 @@ class NBeatsNet(nn.Module):
         self.seq_len = args.seq_len
         self.hidden_layer_units = int(args.pred_len*3)
         self.nb_blocks_per_stack = len(args.d_nbeat)
-        self.share_weights_in_stack = False # 是否共享权重（每个stack里面的g^b和g^f里面的全连接权重共享）
+        self.share_weights_in_stack = False # Whether the weights are shared (g^b inside each stack and fully connected weights inside g^f are shared)
         self.nb_harmonics = None
         self.stack_types = (TREND_BLOCK, SEASONALITY_BLOCK)
         self.stacks = []
@@ -112,7 +112,7 @@ def seasonality_model(thetas, t, device):
     s2 = torch.tensor(np.array([np.sin(2 * np.pi * i * t) for i in range(p2)])).float()
     S = torch.cat([s1, s2])
     seasonality_output = torch.zeros(thetas.shape[0],thetas.shape[1],S.shape[-1])
-    for i in range(len(thetas)):# 由于增加了batch维度，这里对batch里面的每个样本都进行一次与矩阵T的相乘
+    for i in range(len(thetas)):# Since the batch dimension is increased, here each sample inside the batch is multiplied once with the matrix T
         seasonality_output[i] = thetas[i].mm(S.to(device))
     return seasonality_output
 
@@ -122,7 +122,7 @@ def trend_model(thetas, t, device):
     assert p <= 4, 'thetas_dim is too big.'
     T = torch.tensor(np.array([t ** i for i in range(p)])).float()
     trend_output = torch.zeros(thetas.shape[0],thetas.shape[1],T.shape[-1])
-    for i in range(len(thetas)):# 由于增加了batch维度，这里对batch里面的每个样本都进行一次与矩阵T的相乘
+    for i in range(len(thetas)):# Since the batch dimension is increased, here each sample inside the batch is multiplied once with the matrix T
         trend_output[i] = thetas[i].mm(T.to(device))
     return trend_output
 
@@ -156,7 +156,7 @@ class Block(nn.Module):
 
     def forward(self, x):
         x = squeeze_last_dim(x)
-        x = F.relu(self.fc1(x.to(self.device)))  # 对时间180进行全连接，没问题
+        x = F.relu(self.fc1(x.to(self.device)))
         x = F.relu(self.fc2(x))
         x = F.relu(self.fc3(x))
         x = F.relu(self.fc4(x))

@@ -1,7 +1,6 @@
 import torch
 from torch import nn
 import math
-
 class LayerNorm(nn.Module):
     def __init__(self, channels):
         super(LayerNorm, self).__init__()

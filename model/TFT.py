@@ -520,7 +520,7 @@ class TFT(nn.Module):
         # x shape: bs,prelen,dim,hidden_dimension
         h_record, c_record = h_past
         output_record = []
-        for i in range(x.shape[-2]): # 对每个股票单独建模
+        for i in range(x.shape[-2]):
             input = x[:,:,i]
             h,c = h_record[:,i],c_record[:,i]
             output,(h,c) = self.lstm_encoder[i](input,(h,c))
@@ -532,7 +532,7 @@ class TFT(nn.Module):
 
     def forward(self,batch_x, batch_y, batch_x_mark, batch_y_mark,category):
 
-        # 模型输入包括历史数据，历史时间，未来时间和预测对象的特征（这里以数据集的均值category表示特征)
+        # model inputs include historical data, historical time, future time and features of the predicted object (here the features are represented as the mean category of the dataset)
 
         # batch_x:bs,seqlen,dim
         # batch_x_mark:bs,seqlen,time_dimension
@@ -558,8 +558,6 @@ class TFT(nn.Module):
         # input shape: static(bs,dim,static_dimension)
         # past:(bs,seqlen,dim,past_feature_dimension)
         # future(bs,prelen,dim,future_feature_dimension)
-
-        # 对静态变量的embedding
         static_proceeded = torch.zeros(size=(static.shape[0],static.shape[1],
                                              self.static_dimension,
                                              self.hidden_dimension)).to(self.device)
@@ -567,14 +565,13 @@ class TFT(nn.Module):
         for i in range(self.static_dimension):
             static_proceeded[:,:,i,:] = self.static_embedding[i](static[:,:,i].unsqueeze(-1))
 
-        for i in range(past.shape[1]):# 将static_proceeded重复batchsize次组成矩阵，便于后续批量化处理
+        for i in range(past.shape[1]):
             if i == 0:
                 static_proceeded_batch = static_proceeded.unsqueeze(-1)
             else:
                 static_proceeded_batch = torch.cat((static_proceeded_batch,static_proceeded.unsqueeze(-1)),dim=-1)
         static_proceeded = static_proceeded_batch.permute(0,4,1,2,3)
 
-        # 对动态时变量的embedding
         past_proceeded = torch.zeros(size=(past.shape[0],
                                            past.shape[1],
                                            past.shape[2],
@@ -583,32 +580,30 @@ class TFT(nn.Module):
         for i in range(self.past_dimension):
             past_proceeded[:,:,:,i] += self.past_embedding[i](past[:, :, :, i].unsqueeze(-1))
 
-        # 对动态时不变量的embedding
-        ####### 一般这里都是一维的特征，也就是下面的for循环只会执行一次
         future_proceeded = torch.zeros(size=(future.shape[0],future.shape[1],
                                              future.shape[2],future.shape[3],
                                              self.hidden_dimension)).to(self.device)
         for i in range(self.future_dimension):
             future_proceeded[:,:,:,i]= self.future_embedding[i](future[:,:,:,i].unsqueeze(-1))
 
-        # 特征筛选
+        # Feature Screening
         past_variable_selected = self.vsn_past(past_proceeded,static_proceeded).to(self.device)  # bs,seqlen,dim,hidden_dimension
         future_variable_selected = self.vsn_future(future_proceeded,static_proceeded).to(self.device) # bs,prelen,dim,hidden_dimension
 
-        # 输入lstm，分为encoder和decoder
+
         past_lstm, past_hidden = self.encoder(past_variable_selected)
         future_lstm= self.decoder(future_variable_selected,past_hidden )
-        lstm_output = torch.cat((past_lstm,future_lstm),dim=2).permute(0,2,1,3) # 将seqlen和prelen拼接起来
-        lstm_input = torch.cat((past_variable_selected,future_variable_selected),dim=1) # 后面用于残差相加
+        lstm_output = torch.cat((past_lstm,future_lstm),dim=2).permute(0,2,1,3)
+        lstm_input = torch.cat((past_variable_selected,future_variable_selected),dim=1)
         lstm_proceeded = self.ln(self.glu_after_add(self.glu_before_add(lstm_output) + lstm_input))
 
         # static enrichment
-        static_embedding_enrich_context = torch.cat((static_proceeded.squeeze(-2),static_proceeded.squeeze(-2)),dim=1)  # 处理一下static_embedding,便于后续批量操作
+        static_embedding_enrich_context = torch.cat((static_proceeded.squeeze(-2),static_proceeded.squeeze(-2)),dim=1)
         enriched_past_future = self.static_enrichment(lstm_proceeded,static_embedding_enrich_context)
 
         enriched_past_future = enriched_past_future.permute(0, 2, 1, 3) # bs,seqlen+prelen,dim,hidden_dimension ----- bs,dim,seqlen+prelen,hidden_dimension
         mask = torch.tril(torch.ones(enriched_past_future.shape[2], enriched_past_future.shape[2]).to(self.device)) - \
-               torch.eye(enriched_past_future.shape[2], enriched_past_future.shape[2]).to(self.device)  # 右上三角矩阵，用于mask，使得未来的特征只收到之前时间的影响，不受更未来特征的影响
+               torch.eye(enriched_past_future.shape[2], enriched_past_future.shape[2]).to(self.device)
         mask = mask.bool()
         attention_output_future,attention_weight = self.masked_multive_attention(q=enriched_past_future,
                                                                 k=enriched_past_future,

@@ -41,11 +41,6 @@ class EXP_WSAES_LSTM:
 
         self.modelpath = './checkpoint/'+self.model_name+'/'+self.data_name+'_best_model.pkl'
 
-
-        #-------------------------------------------
-        #   所有的数据命名要命名成统一的格式
-        #   并且csv要处理成统一格式[date,dim1,dim2......]
-        #-------------------------------------------
         if self.args.data_name == 'ETTh1':
             self.data_path = './datasets/ETT-small/ETTh1.csv'
 
@@ -96,12 +91,8 @@ class EXP_WSAES_LSTM:
         print('Number of devices: {}'.format(ngpus_per_node))
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        print('------------使用设备---------------')
+        print('------------Use of equipment---------------')
         print(self.device)
-
-        # -------------------------------------------------------------
-        #   根据model name来选择model
-        # -------------------------------------------------------------
 
         self.model = WSAES_LSTM(self.args)
 
@@ -120,15 +111,12 @@ class EXP_WSAES_LSTM:
 
 
         if self.args.resume:
-            print('加载预训练模型')
-            # If map_location is missing, torch.load will first load the module to CPU
-            # and then copy each parameter to where it was saved,
-            # which would result in all processes on the same machine using the same set of devices.
-            checkpoint = torch.load(self.modelpath)  # 读取之前保存的权重文件(包括优化器以及学习率策略)
+            print('Loading pre-trained models')
+            checkpoint = torch.load(self.modelpath)
             self.model.load_state_dict(checkpoint['model'])
             self.optimizer.load_state_dict(checkpoint['optimizer'])
             self.scheduler.load_state_dict(checkpoint['lr_scheduler'])
-            # self.args.start_epoch = checkpoint['epoch'] + 1
+
 
         return
 
@@ -137,12 +125,6 @@ class EXP_WSAES_LSTM:
         batch_y = batch_y.float().to(self.device)
         batch_x_mark = batch_x_mark.float().to(self.device)
         batch_y_mark = batch_y_mark.float().to(self.device)
-
-
-        #---------------------------------------------------------
-        #   别的多余的数据处理全部放到具体model里面处理
-        #   model的输入统一只有batch_x,batch_x_mark,batch_y_mark
-        # ---------------------------------------------------------
 
         prediction,sae_output = self.model(batch_x, batch_y,batch_x_mark, batch_y_mark,epoch)
         loss_MSE = self.criterion(prediction, batch_y[:, -self.pred_len:, :])
@@ -156,19 +138,9 @@ class EXP_WSAES_LSTM:
         for epoch in range(self.epochs):
             self.model.train()
             train_loss = []
-            # ------------------------------------------------------
-            #   tqdm是动态显示进度条的
-            #   trainloader不过是把输入数据加了一个batchsize的维度
-            # ------------------------------------------------------
 
             for (batch_x, batch_y, batch_x_mark, batch_y_mark) in tqdm(self.trainloader):
-                # ------------------------------------------------
-                #   这里如果是股票数据的话，是4维的
-                #   [batch_size,股票个数,seq_len,特征]
-                #   普通数据[batch_size,seq_len,特征]
-                #   如果把股票个数看做特征的话
-                #   [batch_size,seq_len,特征]
-                # ------------------------------------------------
+
                 pred,sae_output,_ = self._process_one_batch_WSAEs_LSTM(epoch,batch_x, batch_y, batch_x_mark, batch_y_mark)
                 if epoch < self.pretrain:
                     pred = pred.to(torch.float32)
@@ -229,7 +201,7 @@ class EXP_WSAES_LSTM:
                     break
                 self.scheduler.step()
 
-        checkpoint = torch.load(self.modelpath)  # 读取之前保存的权重文件(包括优化器以及学习率策略)
+        checkpoint = torch.load(self.modelpath)
         self.model.load_state_dict(checkpoint['model'])
         self.optimizer.load_state_dict(checkpoint['optimizer'])
         self.scheduler.load_state_dict(checkpoint['lr_scheduler'])
@@ -263,18 +235,6 @@ class EXP_WSAES_LSTM:
         
         
         
-
-
-
-
-
-
-
-
-
-
-
-
 
 from torch import nn
 import torch
@@ -347,7 +307,6 @@ class WSAES_LSTM(nn.Module):
             nn.ReLU()
         )
     def Wavelet_transform(self,data):
-        # 由于小波变换的包好像不能对tensor类别操作，这里将数据转成numpy，后面再转回来
         data = data.permute(0,2,1)
         input_data_length = data.shape[-1]
         batch_size = data.shape[0]
@@ -365,12 +324,6 @@ class WSAES_LSTM(nn.Module):
         return data_without_noise
 
     def SAE(self,epoch,input):
-        # input shape batchsize，seq——len，dim，通过sae（两次全连接，重构输入）
-        # 论文中提出，sae的训练是训练了一层后才开始训练第二层，
-        # 为了便于训练，我把epoch作为参数传入，总的epoches拆成5等分，
-        # 第一等分主要是训练第一个sae，训练完后训练第二个sae，
-        # 注意，第二个sae的输入是一个sae的隐藏层！！！！！，后面依次类推
-        # 全连接对stock——number维度操作！！！！
         if epoch < int(self.total_pre_train_epoch/5 * 1):
             output = self.sae1_become_hidden(input)
             output = self.sae1_become_original(output)
@@ -407,10 +360,7 @@ class WSAES_LSTM(nn.Module):
         return output
 
     def LSTM_PROCEED(self,input):
-        # input shape batchsize,seq_len,dim
-        # 这里使用多步滚动预测，即用seqlen预测第seqlen+1天，然后1---（seqlen+1）共seqlen天去预测第seqlen+2天
         input = input.permute(0,2,1)
-        # lstm的输入维度；batchsize，dim，seq——len，对seq-len操作
         prediction = torch.zeros(size=(input.shape[0],input.shape[1],self.pre_len)).to(self.device)
 
         for i in range(self.pre_len):
@@ -420,7 +370,7 @@ class WSAES_LSTM(nn.Module):
             a,b = input,output
             input = torch.cat((input,output),dim=-1)
 
-        prediction = prediction.permute(0,2,1) # 变回batchsize，prelen，dim
+        prediction = prediction.permute(0,2,1) # Change back to batchsize, prelen, dim
 
         return prediction
 
@@ -432,7 +382,8 @@ class WSAES_LSTM(nn.Module):
 
 
 def Wavelet(data):
-        # 由于小波变换的包好像不能对tensor类别操作，这里将数据转成numpy，后面再转回来
+        # Since the wavelet transform packet doesn't seem to be able to operate on the tensor category,
+        # here's the data converted to numpy, and then converted back later.
     data = data.permute(0,2,1)
     input_data_length = data.shape[-1]
     batch_size = data.shape[0]

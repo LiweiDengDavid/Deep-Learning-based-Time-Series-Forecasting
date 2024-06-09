@@ -2,7 +2,6 @@ from torch import nn
 import torch
 from layers.gated_residual_network import GatedResidualNetwork
 
-
 class LSTMCombineAndMask(nn.Module):
     def __init__(self, input_size, num_inputs, hidden_layer_size, dropout_rate, use_time_distributed=False,
                  batch_first=True):
@@ -29,9 +28,7 @@ class LSTMCombineAndMask(nn.Module):
 
     def forward(self, embedding, additional_context=None):
         # Add temporal features
-        # 四维输入
         _, time_steps, embedding_dim, num_inputs = list(embedding.shape)
-        # 展成三维
         flattened_embedding = torch.reshape(embedding,
                                             [-1, time_steps, embedding_dim * num_inputs])
 
@@ -46,14 +43,12 @@ class LSTMCombineAndMask(nn.Module):
 
         trans_emb_list = []
         for i in range(self.num_inputs):
-            # Ellipsis是省略的意思
             ##select slice of embedding belonging to a single input
             trans_emb_list.append(
                 self.single_variable_grns[i](embedding[Ellipsis, i])
             )
 
         transformed_embedding = torch.stack(trans_emb_list, dim=-1)
-        # 加权，权值来自于整体的GRN
         combined = transformed_embedding * sparse_weights
         # 求和
         temporal_ctx = combined.sum(dim=-1)

@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-
 class ConvLayer(nn.Module):
     def __init__(self, c_in):
         super(ConvLayer, self).__init__()
@@ -18,8 +17,8 @@ class ConvLayer(nn.Module):
 
     def forward(self, x):
         # ----------------------------------------------
-        #   informer的蒸馏方法
-        #   其实主要就是3*3的卷积以及一个下采样，目的是为了降低输入序列的时间维度，减少参数量
+        # informer's distillation method
+        # It's really just a 3*3 convolution and a downsampling to reduce the time dimension of the input sequence and the number of parameters.
         # ----------------------------------------------
 
         x = self.downConv(x.permute(0, 2, 1))
@@ -27,7 +26,6 @@ class ConvLayer(nn.Module):
         x = self.activation(x)
         x = self.maxPool(x)
 
-        #   蒸馏后seq_len从96到48
         x = x.transpose(1, 2)
         return x
 
@@ -45,16 +43,12 @@ class EncoderLayer(nn.Module):
         self.activation = F.relu if activation == "relu" else F.gelu
 
     def forward(self, x, attn_mask=None):
-        # x [B, L, D]
-        # x = x + self.dropout(self.attention(
-        #     x, x, x,
-        #     attn_mask = attn_mask
-        # ))
+
         new_x, attn = self.attention(
             x, x, x,
             attn_mask=attn_mask
         )
-        # [B,S,512]
+
         x = x + self.dropout(new_x)
 
         y = x = self.norm1(x)
@@ -73,7 +67,6 @@ class Encoder(nn.Module):
         self.norm = norm_layer
 
     def forward(self, x, attn_mask=None):
-
 
         # x [B, S, D]
         attns = []
@@ -112,9 +105,6 @@ class DecoderLayer(nn.Module):
         self.activation = F.relu if activation == "relu" else F.gelu
 
     def forward(self, x, cross, x_mask=None, cross_mask=None):
-        #-------------------------------------------------------
-        #   x[B,L+P,512]    attention前后并不会改变x的维度
-        #-------------------------------------------------------
 
         x = x + self.dropout(self.self_attention(
             x, x, x,
@@ -128,9 +118,6 @@ class DecoderLayer(nn.Module):
         )[0])
 
         y = x = self.norm2(x)
-        #-----------------------------------------
-        #   feed forward模块
-        #-----------------------------------------
 
         y = self.dropout(self.activation(self.conv1(y.transpose(-1,1))))
         y = self.dropout(self.conv2(y).transpose(-1,1))
@@ -144,8 +131,6 @@ class Decoder(nn.Module):
         self.norm = norm_layer
 
     def forward(self, x, cross, x_mask=None, cross_mask=None):
-
-    # x[B,72,512]   cross即encoder输出[B,蒸馏后的S,512]
         for layer in self.layers:
             x = layer(x, cross, x_mask=x_mask, cross_mask=cross_mask)
 

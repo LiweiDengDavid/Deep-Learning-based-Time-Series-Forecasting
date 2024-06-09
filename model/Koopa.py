@@ -2,7 +2,6 @@ import math
 import torch
 import torch.nn as nn
 
-
 class FourierFilter(nn.Module):
     """
     Fourier Filter: to time-variant and time-invariant term
@@ -76,17 +75,17 @@ class KPLayer(nn.Module):
     def one_step_forward(self, z, return_rec=False, return_K=False):
         B, input_len, E = z.shape
         assert input_len > 1, 'snapshots number should be larger than 1'
-        x, y = z[:, :-1], z[:, 1:]  # 一个是Z_back，一个是Z_force
+        x, y = z[:, :-1], z[:, 1:]
 
         # solve linear system
-        self.K = torch.linalg.lstsq(x, y).solution  # B E E  利用最小二乘的方法求解出K_var
+        self.K = torch.linalg.lstsq(x, y).solution  # B E E  Use the least squares method to solve for K_var
         if torch.isnan(self.K).any():
             print('Encounter K with nan, replace K by identity matrix')
             self.K = torch.eye(self.K.shape[1]).to(self.K.device).unsqueeze(0).repeat(B, 1, 1)
 
-        z_pred = torch.bmm(z[:, -1:, :], self.K)  # bmm是矩阵相乘，利用回顾窗口的最后一个patch乘上对应的K_var得到预测窗口的结果
-        if return_rec:  # 回顾
-            z_rec = torch.cat((z[:, :1], torch.bmm(x, self.K)), dim=1)  # 利用前一个patch作为输入，预测后一个patch(作为重建结果)
+        z_pred = torch.bmm(z[:, -1:, :], self.K)
+        if return_rec:
+            z_rec = torch.cat((z[:, :1], torch.bmm(x, self.K)), dim=1)
             return z_rec, z_pred
 
         return z_pred
@@ -184,21 +183,21 @@ class TimeVarKP(nn.Module):
         # x: B L C
         B, L, C = x.shape
 
-        res = torch.cat((x[:, L - self.padding_len:, :], x), dim=1)  # 进行一个padding 为了后续切分Patch的时候可以被整除
+        res = torch.cat((x[:, L - self.padding_len:, :], x), dim=1)
 
-        res = res.chunk(self.freq, dim=1)  # F x B P C, P means seg_len （将某一个维度进行分块操作，self.freq是分成几块）
-        res = torch.stack(res, dim=1).reshape(B, self.freq, -1)  # B F PC (F=patch_num,P=patch_len.C=dim)
+        res = res.chunk(self.freq, dim=1)
+        res = torch.stack(res, dim=1).reshape(B, self.freq, -1)
 
-        res = self.encoder(res)  # B F H
-        x_rec, x_pred = self.dynamics(res, self.step)  # B F H, B S H
+        res = self.encoder(res)
+        x_rec, x_pred = self.dynamics(res, self.step)
 
-        x_rec = self.decoder(x_rec)  # B F PC 映射回输出的维度
+        x_rec = self.decoder(x_rec)
         x_rec = x_rec.reshape(B, self.freq, self.seg_len, self.enc_in)
-        x_rec = x_rec.reshape(B, -1, self.enc_in)[:, :self.input_len, :]  # B L C
+        x_rec = x_rec.reshape(B, -1, self.enc_in)[:, :self.input_len, :]
 
-        x_pred = self.decoder(x_pred)  # B S PC
+        x_pred = self.decoder(x_pred)
         x_pred = x_pred.reshape(B, self.step, self.seg_len, self.enc_in)
-        x_pred = x_pred.reshape(B, -1, self.enc_in)[:, :self.pred_len, :]  # B S C
+        x_pred = x_pred.reshape(B, -1, self.enc_in)[:, :self.pred_len, :]
 
         return x_rec, x_pred
 
@@ -230,8 +229,8 @@ class TimeInvKP(nn.Module):
     def forward(self, x):
         # x: B L C
         res = x.transpose(1, 2)  # B C L
-        res = self.encoder(res)  # B C H 将序列的时间步进行映射
-        res = self.K(res)  # B C H  引入的K算子
+        res = self.encoder(res)  # B C H
+        res = self.K(res)  # B C H
         res = self.decoder(res)  # B C S
         res = res.transpose(1, 2)  # B S C
 
@@ -304,9 +303,9 @@ class koopa(nn.Module):
         # Koopman Forecasting
         residual, forecast = x_enc, None
         for i in range(self.num_blocks):
-            time_var_input, time_inv_input = self.disentanglement(residual)  # 使用傅里叶block选出时变和时不变
-            time_inv_output = self.time_inv_kps[i](time_inv_input)  # 时不变，对时间维度进行操作
-            time_var_backcast, time_var_output = self.time_var_kps[i](time_var_input)  # 时变部分
+            time_var_input, time_inv_input = self.disentanglement(residual)  # Use Fourier block to select time-varying and time-invariant
+            time_inv_output = self.time_inv_kps[i](time_inv_input)
+            time_var_backcast, time_var_output = self.time_var_kps[i](time_var_input)
             residual = residual - time_var_backcast
             if forecast is None:
                 forecast = (time_inv_output + time_var_output)

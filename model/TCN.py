@@ -78,10 +78,10 @@ class TCN(nn.Module):
         self.linear.weight.data.normal_(0, 0.01)
 
     def forward(self, batch_x, batch_y, batch_x_mark, batch_y_mark):
-        # 模型说明：
-        # 1.输入batchsize，seqlen, stock_num，输出batchsize，pre_len,stock_num
-        # 2.输入长度 = 输出长度  （ 十分确定 ）
-        # 3.试了很多次，还是多创建一个通道作为卷积的通道效果正常一些,也就是输入被我转换成了四维，多出来的一个维度作为卷积的通道
+        # Model description:
+        # 1. input batchsize, seqlen, stock_num, output batchsize, pre_len,stock_num
+        # 2. Input length = output length
+        # 3. Tried many times, but still create an extra channel as the channel of convolution, the effect is more normal, that is, the input is converted into four dimensions, an extra dimension as the channel of convolution.
         
         # 输入 batchsize，seqlen,stock_num
         if self.pre_len<=self.args.seq_len:
@@ -89,7 +89,7 @@ class TCN(nn.Module):
         else:
             input = batch_x
         input = input.unsqueeze(-1)  # batchsize，seqlen,stock_num,1
-        input = input.permute(2,3,1,0) # sto_num,1,seqlen,batchsize  第二维度用于卷积，后面经过全连接会变成1。
+        input = input.permute(2,3,1,0) # sto_num,1,seqlen,batchsize The second dimension is used for convolution, and will become 1 later after full connectivity.
         output_total = None
         for i in range(input.shape[-1]):
             output = self.tcn(input[:,:,:,i])
@@ -99,7 +99,7 @@ class TCN(nn.Module):
             if i == 0:
                 output_total = output
             else:
-                output_total = torch.cat((output_total,output))  # 有多个batch则在此基础上叠加
+                output_total = torch.cat((output_total,output))  # If there is more than one batch, then stack on top of it.
 
         if self.pre_len<=self.args.seq_len:
             output_total=output_total

@@ -38,14 +38,14 @@ class EXP_gan:
 
         self.seed = args.seed
 
-        # 构建checkpoint保存训练结果
+        # Construct checkpoint to save training results
         if not os.path.exists('./checkpoint/'):
             os.makedirs('./checkpoint/')
         if not os.path.exists('./checkpoint/'+self.model_name+'/'):
             os.makedirs('./checkpoint/'+self.model_name+'/')
 
 
-        # 计算当前时间，为了后续的结果保存
+        # Calculate the current time, in order to save the subsequent results
         self.now = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 
 
@@ -53,8 +53,8 @@ class EXP_gan:
 
 
         #-------------------------------------------
-        #   所有的数据命名要命名成统一的格式
-        #   并且csv要处理成统一格式[date,dim1,dim2......]
+        #   All data naming should be named in a consistent format
+        #   And the csv should be processed into a uniform format [date,dim1,dim2......]
         #-------------------------------------------
 
         if self.args.data_name == 'ETTh1':
@@ -80,7 +80,8 @@ class EXP_gan:
 
     def _get_data(self):
 
-        #获取数据，基于不同的数据集，主要需要改动get_data函数以及MyDataset函数
+        #Getting data, based on different datasets, mainly requires changes to the
+        # get_data function as well as the MyDataset function
         train,valid,test,mean,scale,dim = get_data(self.data_path)
 
         self.mean = mean
@@ -91,7 +92,6 @@ class EXP_gan:
         validset = MyDataset(valid, seq_len=self.seq_len, label_len=self.label_len, pred_len=self.pred_len)
         testset = MyDataset(test, seq_len=self.seq_len, label_len=self.label_len, pred_len=self.pred_len)
 
-        #使用pytorch自带的封装函数，这里不需要修改
         self.trainloader = DataLoader(trainset, batch_size=self.train_batch,shuffle=True)
         self.validloader = DataLoader(validset, batch_size=self.batch_size,shuffle=False)
         self.testloader = DataLoader(testset, batch_size=self.batch_size,shuffle=False)
@@ -102,7 +102,7 @@ class EXP_gan:
 
 
     def _get_model(self):
-        #   获取模型
+        #  Getting the model
         os.environ["CUDA_VISIBLE_DEVICES"] = ','.join(str(x) for x in self.train_gpu)
         ngpus_per_node = len(self.train_gpu)
         print('Number of devices: {}'.format(ngpus_per_node))
@@ -112,14 +112,12 @@ class EXP_gan:
         print(self.device)
 
         # -------------------------------------------------------------
-        #   根据model name来选择model
+        #   Select a model based on the model name
         # -------------------------------------------------------------
         if self.model_name == 'AST':
             self.model = AST(self.args)
             self.discriminator = Discriminator(self.args)
 
-
-        #   多gpu训练时的特殊模型读取方式
         if ngpus_per_node > 1:
             self.model = nn.DataParallel(self.model, device_ids=self.devices)
 
@@ -131,28 +129,22 @@ class EXP_gan:
         self.optimizer_G = optim.Adam(self.model.parameters(), lr=self.lr, weight_decay=1e-4)
         self.scheduler = LambdaLR(self.optimizer_G, lr_lambda=lambda epoch: 0.75 ** ((epoch - 1) // 2))
 
-        #   多gpu训练时的特殊优化器和衰减方式读取
         if ngpus_per_node > 1:
             self.optimizer = nn.DataParallel(self.optimizer, device_ids=self.devices)
             self.scheduler = nn.DataParallel(self.scheduler, device_ids=self.devices)
 
-        #   早停机制
+
         self.early_stopping = EarlyStopping(optimizer=self.optimizer_G,scheduler=self.scheduler,patience=self.patience, verbose=self.verbose, path=self.modelpath,)
-        #   损失函数，mse
         self.criterion = nn.MSELoss()
         self.adversarial_loss = torch.nn.BCELoss()
 
 
         if self.args.resume:
-            print('加载预训练模型')
-            # If map_location is missing, torch.load will first load the module to CPU
-            # and then copy each parameter to where it was saved,
-            # which would result in all processes on the same machine using the same set of devices.
-            checkpoint = torch.load(self.modelpath)  # 读取之前保存的权重文件(包括优化器以及学习率策略)
+            print('Loading pre-trained models')
+            checkpoint = torch.load(self.modelpath)
             self.model.load_state_dict(checkpoint['model'])
             self.optimizer_G.load_state_dict(checkpoint['optimizer'])
             self.scheduler.load_state_dict(checkpoint['lr_scheduler'])
-            # self.args.start_epoch = checkpoint['epoch'] + 1
 
         return
 
@@ -161,44 +153,22 @@ class EXP_gan:
         batch_y = batch_y.float().to(self.device)
         batch_x_mark = batch_x_mark.float().to(self.device)
         batch_y_mark = batch_y_mark.float().to(self.device)
-
-
-        #---------------------------------------------------------
-        #   别的多余的数据处理全部放到具体model里面处理
-        #   model的输入统一只有batch_x,batch_x_mark,batch_y_mark
-        # ---------------------------------------------------------
         outputs = self.model(batch_x, batch_x_mark,batch_y, batch_y_mark)
-
-        #这里outputs没有切片，因此是label_len的真实结果+pred_len的预测结果
 
         return outputs
 
 
     def train(self):
 
-
         # self.model.load_state_dict(torch.load(self.modelpath))
         for e in range(self.epochs):
             self.model.train()
             train_loss = []
-            # ------------------------------------------------------
-            #   tqdm是动态显示进度条的
-            #   trainloader不过是把输入数据加了一个batchsize的维度
-            # ------------------------------------------------------
 
             for (batch_x, batch_y, batch_x_mark, batch_y_mark) in tqdm(self.trainloader):
-                # ------------------------------------------------
-                #   这里如果是股票数据的话，是4维的
-                #   [batch_size,股票个数,seq_len,特征]
-                #   普通数据[batch_size,seq_len,特征]
-                #   如果把股票个数看做特征的话
-                #   [batch_size,seq_len,特征]
-                # ------------------------------------------------
-                #batch_y[B,label_len+pred_len,dim]
 
                 B, S, D = batch_x.shape
-                # 构建真样本和假样本
-                #[batchsize,1,D]
+                # Constructing True and False Samples
                 valid = torch.autograd.Variable(torch.cuda.FloatTensor(B,D).fill_(1.0), requires_grad=False).unsqueeze(1)
                 fake = torch.autograd.Variable(torch.cuda.FloatTensor(B,D).fill_(0.0), requires_grad=False).unsqueeze(1)
 
@@ -264,13 +234,11 @@ class EXP_gan:
                 break
             self.scheduler.step()
 
-        # 读取之前保存的权重文件(包括优化器以及学习率策略)
-        # 因为接下来要送到测试函数去进行测试，因此读取最优的模型参数
+
         checkpoint = torch.load(self.modelpath)
         self.model.load_state_dict(checkpoint['model'])
         self.optimizer_G.load_state_dict(checkpoint['optimizer'])
         self.scheduler.load_state_dict(checkpoint['lr_scheduler'])
-        # self.model.load_state_dict(torch.load(self.modelpath))
 
 
     def test(self):
@@ -286,7 +254,6 @@ class EXP_gan:
         trues, preds = np.array(trues), np.array(preds)
         mae = np.mean(np.abs(preds - trues))
         mse = np.mean((preds - trues) ** 2)
-        # 反归一化：
         dstand_preds = preds * self.scale + self.mean
         dstand_trues = trues * self.scale + self.mean
 
@@ -298,8 +265,6 @@ class EXP_gan:
         np.save('./checkpoint/'+self.model_name+'/'+self.data_name+'test_preds',preds)
         np.save('./checkpoint/'+self.model_name+'/'+self.data_name+'test_trues',trues)
 
-        # 创建csv文件记录训练过程
-        # 创建csv文件记录训练过程
         if not os.path.isdir('./results/'):
             os.mkdir('./results/')
 

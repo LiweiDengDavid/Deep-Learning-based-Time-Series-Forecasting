@@ -31,10 +31,8 @@ class LogTrans(nn.Module):
         self.output_attention = None
 
         # Embedding
-        # 这里使用LogTrans的创新点，casualconv做context-embedding，其他的和普通transofermer没有区别。
         self.enc_embedding = LogTrans_DataEmbedding(self.d_feature, self.d_mark, self.d_model, args.dropout, pos)
         # Encoder
-        # 这里使用一般的self-attention
         Attn = FullAttention
         self.encoder = Encoder(
             [

@@ -194,10 +194,6 @@ class AutoCorrelationLayer(nn.Module):
 
         d_keys = d_keys or (d_model // n_heads)
         d_values = d_values or (d_model // n_heads)
-
-
-
-        #
         self.inner_correlation = correlation
         self.query_projection = nn.Linear(d_model, d_keys * n_heads)
         self.key_projection = nn.Linear(d_model, d_keys * n_heads)
@@ -213,7 +209,6 @@ class AutoCorrelationLayer(nn.Module):
         queries = self.query_projection(queries).view(B, L, H, -1)
         keys = self.key_projection(keys).view(B, S, H, -1)
         values = self.value_projection(values).view(B, S, H, -1)
-
 
         out, attn = self.inner_correlation(
             queries,

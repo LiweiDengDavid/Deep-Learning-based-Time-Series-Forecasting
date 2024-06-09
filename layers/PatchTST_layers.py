@@ -21,7 +21,6 @@ def get_activation_fn(activation):
     
     
 # decomposition
-
 class moving_avg(nn.Module):
     """
     Moving average block to highlight the trend of time series

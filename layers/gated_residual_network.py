@@ -5,7 +5,6 @@ from layers.linear_layer import LinearLayer
 from layers.add_and_norm import AddAndNorm
 from layers.gated_linear_unit import GLU
 
-
 class GatedResidualNetwork(nn.Module):
     def __init__(self,
                  input_size,

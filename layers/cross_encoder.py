@@ -4,7 +4,6 @@ import torch.nn.functional as F
 from einops import rearrange, repeat
 from layers.attn import FullAttention, AttentionLayer, TwoStageAttentionLayer
 from math import ceil
-
 class SegMerging(nn.Module):
     '''
     Segment Merging Layer.

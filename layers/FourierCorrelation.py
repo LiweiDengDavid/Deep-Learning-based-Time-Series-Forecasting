@@ -15,7 +15,7 @@ def get_frequency_modes(seq_len, modes=64, mode_select_method='random'):
     'else' means sampling the lowest modes;
     """
 
-    # 随机获取抽取的傅里叶分量的index
+    # Randomly obtain the index of the extracted Fourier components
     modes = min(modes, seq_len//2)
     if mode_select_method == 'random':
         index = list(range(0, seq_len // 2))
@@ -61,11 +61,10 @@ class FourierBlock(nn.Module):
         # Perform Fourier neural operations
         out_ft = torch.zeros(B, H, E, L // 2 + 1, device=x.device, dtype=torch.cfloat)
         for i, wi in enumerate(self.index):
-            #随机挑选傅里叶分量
-            #保留下来的傅里叶分量会乘以一个随机权重
+            # Randomly pick the Fourier components
+            #Retained Fourier components are multiplied by a random weight
             out_ft[:, :, :, wi] = self.compl_mul1d(x_ft[:, :, :, wi], self.weights1[:, :, :, i])
         # Return to time domain
-        # x的维度在这个过程中是没有变化的
         x = torch.fft.irfft(out_ft, n=x.size(-1))
         return (x, None)
 

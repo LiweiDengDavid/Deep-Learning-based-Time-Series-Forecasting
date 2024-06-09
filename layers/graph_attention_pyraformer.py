@@ -19,7 +19,6 @@ print('Using device: {}'.format(torch.cuda.get_device_name()))
 import pynvml
 pynvml.nvmlInit()
 
-
 def get_q_k(input_size, window_size, stride, device):
     """Get the query-key index for PAM-TVM"""
     second_length = input_size // stride

@@ -4,7 +4,6 @@ import torch.nn.functional as F
 from einops import rearrange, repeat
 
 import math
-
 class DSW_embedding(nn.Module):
     def __init__(self, seg_len, d_model):
         super(DSW_embedding, self).__init__()

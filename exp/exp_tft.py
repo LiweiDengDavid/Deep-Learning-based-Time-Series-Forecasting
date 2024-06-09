@@ -36,24 +36,18 @@ class EXP_tft:
 
         self.seed = args.seed
 
-        # 构建checkpoint保存训练结果
         if not os.path.exists('./checkpoint/'):
             os.makedirs('./checkpoint/')
         if not os.path.exists('./checkpoint/'+self.model_name+'/'):
             os.makedirs('./checkpoint/'+self.model_name+'/')
 
 
-        # 计算当前时间，为了后续的结果保存
         self.now = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 
 
         self.modelpath = './checkpoint/'+self.model_name+'/'+self.data_name+'_best_model.pkl'
 
 
-        #-------------------------------------------
-        #   所有的数据命名要命名成统一的格式
-        #   并且csv要处理成统一格式[date,dim1,dim2......]
-        #-------------------------------------------
         
         if self.args.data_name == 'ETTh1':
             self.data_path = './datasets/ETT-small/ETTm1.csv'
@@ -80,7 +74,6 @@ class EXP_tft:
 
     def _get_data(self):
 
-        #获取数据，基于不同的数据集，主要需要改动get_data函数以及MyDataset函数
         train,valid,test,mean,scale,dim = get_data(self.data_path)
 
         self.mean = mean
@@ -92,7 +85,6 @@ class EXP_tft:
         validset = MyDataset_tft(valid, seq_len=self.seq_len, label_len=self.label_len, pred_len=self.pred_len)
         testset = MyDataset_tft(test, seq_len=self.seq_len, label_len=self.label_len, pred_len=self.pred_len)
 
-        #使用pytorch自带的封装函数，这里不需要修改
         self.trainloader = DataLoader(trainset, batch_size=self.batch_size,shuffle=True,drop_last=True)
         self.validloader = DataLoader(validset, batch_size=self.batch_size,shuffle=False,drop_last=True)
         self.testloader = DataLoader(testset, batch_size=self.batch_size,shuffle=False,drop_last=True)
@@ -112,14 +104,11 @@ class EXP_tft:
         print('------------使用设备---------------')
         print(self.device)
 
-        # -------------------------------------------------------------
-        #   根据model name来选择model
-        # -------------------------------------------------------------
 
         quantiles = self.quantiles
         self.model = TFT(self.args)
 
-        #   多gpu训练时的特殊模型读取方式
+
         if ngpus_per_node > 1:
             self.model = nn.DataParallel(self.model, device_ids=self.devices)
 
@@ -128,28 +117,24 @@ class EXP_tft:
         self.optimizer = optim.Adam(self.model.parameters(), lr=self.lr, weight_decay=1e-4)
         self.scheduler = LambdaLR(self.optimizer, lr_lambda=lambda epoch: 0.75 ** ((epoch - 1) // 2))
 
-        #   多gpu训练时的特殊优化器和衰减方式读取
         if ngpus_per_node > 1:
             self.optimizer = nn.DataParallel(self.optimizer, device_ids=self.devices)
             self.scheduler = nn.DataParallel(self.scheduler, device_ids=self.devices)
 
-        #   早停机制
+
         self.early_stopping = EarlyStopping(optimizer=self.optimizer,scheduler=self.scheduler,patience=self.patience,path=self.modelpath,)
-        #   损失函数，mse
+
         self.criterion = nn.MSELoss()
         self.QuantileLoss = QuantileLoss(self.quantiles)
 
 
         if self.args.resume:
-            print('加载预训练模型')
-            # If map_location is missing, torch.load will first load the module to CPU
-            # and then copy each parameter to where it was saved,
-            # which would result in all processes on the same machine using the same set of devices.
-            checkpoint = torch.load(self.modelpath)  # 读取之前保存的权重文件(包括优化器以及学习率策略)
+            print('Loading pre-trained models')
+            checkpoint = torch.load(self.modelpath)
             self.model.load_state_dict(checkpoint['model'])
             self.optimizer.load_state_dict(checkpoint['optimizer'])
             self.scheduler.load_state_dict(checkpoint['lr_scheduler'])
-            # self.args.start_epoch = checkpoint['epoch'] + 1
+
 
         return
 
@@ -159,12 +144,6 @@ class EXP_tft:
         batch_x_mark = batch_x_mark.float().to(self.device)
         batch_y_mark = batch_y_mark.float().to(self.device)
         category = category.float().to(self.device)
-
-        #---------------------------------------------------------
-        #   别的多余的数据处理全部放到具体model里面处理
-        #   model的输入统一只有batch_x,batch_x_mark,batch_y_mark
-        # ---------------------------------------------------------
-
 
         static = category[:,0].unsqueeze(-1)
         for i in range(batch_x.shape[-1]):
@@ -190,24 +169,12 @@ class EXP_tft:
 
     def train(self):
 
-
-        # self.model.load_state_dict(torch.load(self.modelpath))
         for e in range(self.epochs):
             self.model.train()
             train_loss = []
-            # ------------------------------------------------------
-            #   tqdm是动态显示进度条的
-            #   trainloader不过是把输入数据加了一个batchsize的维度
-            # ------------------------------------------------------
 
             for (batch_x, batch_y, batch_x_mark, batch_y_mark,category) in tqdm(self.trainloader):
-                # ------------------------------------------------
-                #   这里如果是股票数据的话，是4维的
-                #   [batch_size,股票个数,seq_len,特征]
-                #   普通数据[batch_size,seq_len,特征]
-                #   如果把股票个数看做特征的话
-                #   [batch_size,seq_len,特征]
-                # ------------------------------------------------
+
                 self.optimizer.zero_grad()
                 pred, loss = self._process_one_batch(batch_x, batch_y, batch_x_mark, batch_y_mark,category,mode='train')
                 train_loss.append(loss.item())
@@ -235,13 +202,11 @@ class EXP_tft:
                 break
             self.scheduler.step()
 
-        # 读取之前保存的权重文件(包括优化器以及学习率策略)
-        # 因为接下来要送到测试函数去进行测试，因此读取最优的模型参数
         checkpoint = torch.load(self.modelpath)
         self.model.load_state_dict(checkpoint['model'])
         self.optimizer.load_state_dict(checkpoint['optimizer'])
         self.scheduler.load_state_dict(checkpoint['lr_scheduler'])
-        # self.model.load_state_dict(torch.load(self.modelpath))
+
 
 
 
@@ -261,7 +226,6 @@ class EXP_tft:
         mae = np.mean(np.abs(preds - trues))
         mse = np.mean((preds - trues) ** 2)
 
-        #反归一化：
         dstand_preds = preds*self.scale+self.mean
         dstand_trues = trues*self.scale+self.mean
 
@@ -273,7 +237,6 @@ class EXP_tft:
         np.save('./checkpoint/'+self.model_name+'/'+self.data_name+'test_preds',preds)
         np.save('./checkpoint/'+self.model_name+'/'+self.data_name+'test_trues',trues)
 
-        # 创建csv文件记录训练过程
         if not os.path.isdir('./results/'):
             os.mkdir('./results/')
 
@@ -283,7 +246,7 @@ class EXP_tft:
                            'epoches', 'batch_size', 'seed', 'best_mae', 'mse','mape','seq_len','label_len','pred_len']]
             write_csv(log_path, table_head, 'w+')
 
-        time = datetime.datetime.now().strftime('%Y%m%d-%H%M%S')  # 获取当前系统时间
+        time = datetime.datetime.now().strftime('%Y%m%d-%H%M%S')
         a_log = [{'dataset': self.data_name, 'model': self.model_name, 'time': time,
                   'LR': self.lr,
                   'epoches': self.epochs, 'batch_size': self.batch_size,
@@ -321,20 +284,12 @@ class MyDataset_tft(Dataset):
         self.stamp = data[1]
         self.category = data[2]
 
-        # ---------------------------------------------
-        #   label_len是为了Transfomer中的一步式预测使用的
-        #   传统的RNN模型不需要考虑label-len
-        # ---------------------------------------------
         self.seq_len = seq_len
         self.label_len = label_len
         self.pred_len = pred_len
 
     def __getitem__(self, index):
         e_begin = index
-        # ------------------------------------------------------
-        #   通过index来在原始数据中划分seqlen，labellen以及predlen
-        #   从index往后seq_len长度
-        # ------------------------------------------------------
         e_end = e_begin + self.seq_len
         d_begin = e_end - self.label_len
         d_end = e_end + self.pred_len
@@ -348,50 +303,27 @@ class MyDataset_tft(Dataset):
         return seq_x, seq_y, seq_x_mark, seq_y_mark,category
 
     def __len__(self):
-        #------------------------------------------------
-        #   掐头去尾计算中间的滑动次数
-        #------------------------------------------------
-        # len(self.data) - self.seq_len - self.pred_len + 1
+
         return len(self.data) - self.seq_len - self.pred_len + 1
 
 
 
 def get_data(path):
     df = pd.read_csv(path)
-    #-------------------------------------------------------------
-    #   提取’date‘属性中的年/月/日/时
-    #-------------------------------------------------------------
     df['date'] = pd.to_datetime(df['date'])
 
-    #---------------------------------------------
-    #   标准化
-    #   对各个特征数据进行预处理
-    #---------------------------------------------
 
     scaler = StandardScaler(with_mean=True,with_std=True)
-    # ---------------------------------------------
-    #   特征的命名需要满足如下的条件：
-    #   对于不同的数据集可以在这里进行修改。
-    #   这里以后需要改进成通用的格式
-    #   通过直接获取列名称的方式，改的更为通用。
-    # ---------------------------------------------
+
 
     fields = df.columns.values
-    # data = scaler.fit_transform(df[['HUFL', 'HULL', 'MUFL', 'MULL', 'LUFL', 'LULL', 'OT']].values)
     data = scaler.fit_transform(df[fields[1:]].values)
     mean = scaler.mean_
     scale = scaler.scale_
     stamp = scaler.fit_transform(timefeature(df))
 
-    category = np.array(df.shape[0]*[mean]) # 以每个预测对象的均值表征这个对象
+    category = np.array(df.shape[0]*[mean])
 
-
-
-    #---------------------------------------------
-    #   划分数据集
-    #   data是包含除时间外的特征
-    #   stamp只包含时间特征
-    #---------------------------------------------
     train_data = data[:int(0.6 * len(data)), :]
     valid_data = data[int(0.6 * len(data)):int(0.8 * len(data)), :]
     test_data = data[int(0.8 * len(data)):, :]

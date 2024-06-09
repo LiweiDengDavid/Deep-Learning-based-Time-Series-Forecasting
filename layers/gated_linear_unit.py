@@ -2,7 +2,6 @@ from torch import nn
 import torch
 from layers.linear_layer import LinearLayer
 
-
 class GLU(nn.Module):
     # Gated Linear Unit
     def __init__(self,

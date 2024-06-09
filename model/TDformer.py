@@ -38,11 +38,7 @@ class TDformer(nn.Module):
         self.dec_embedding = DataEmbedding_wo_pos(configs.d_feature, configs.d_model, configs.embed, configs.freq,
                                                   configs.dropout)
 
-        # Trend 处理
-        # self.trend_fc1 = nn.Linear(configs.d_model,configs.d_model)
-        # self.trend_out = nn.Linear(configs.d_model,configs.c_out)
-        # self.activation = nn.ReLU()
-
+        # Trend Processing
         self.trend_pred_len = nn.Sequential(
             nn.Linear(self.pred_len+self.seq_len, self.pred_len),
             nn.ReLU(),
@@ -55,8 +51,7 @@ class TDformer(nn.Module):
             nn.Linear(configs.d_model, configs.c_out)
         )
 
-        # Season 处理
-
+        # Season Processing
         FA = FourierCrossAttention(in_channels=configs.d_model,
                                                   out_channels=configs.d_model,
                                                   seq_len_q=self.seq_len // 2 + self.pred_len,
@@ -106,10 +101,8 @@ class TDformer(nn.Module):
     def forward(self, x_enc, x_mark_enc, y_batch, x_mark_dec,
                 enc_self_mask=None, dec_self_mask=None, dec_enc_mask=None):
 
-        # 先分解
         seasonal_init, trend_init = self.decomp(x_enc)
 
-        # 预测部分占位
         pred_init_season = torch.zeros_like(y_batch)
         pred_init_trend = torch.zeros_like(y_batch)
 
@@ -120,17 +113,12 @@ class TDformer(nn.Module):
         Seasonal_mark = torch.cat([x_mark_enc[:, :self.seq_len, :], x_mark_dec[:, -self.pred_len:, :]],dim=1)
         Trend_mark = torch.cat([x_mark_enc[:,:self.seq_len,:],x_mark_dec[:,-self.pred_len:,:]],dim=1)
 
-
         # Embedding
         Trend_inp = self.enc_embedding(Trend_init, Trend_mark)
         Seasonal_inp = self.dec_embedding(Seasonal_init, Seasonal_mark)
 
-        # Trend用MLP预测
         Trend_pred_len = self.trend_pred_len(Trend_inp.permute(0,2,1))
         Trend_pred = self.trend_pred_model(Trend_pred_len.permute(0,2,1))
-
-
-        #Season 用Transformer处理
 
         enc_out, _ = self.encoder(Seasonal_inp, attn_mask=enc_self_mask)
 

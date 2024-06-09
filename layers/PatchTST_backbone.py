@@ -55,8 +55,7 @@ class PatchTST_backbone(nn.Module):
             self.head = self.create_pretrain_head(self.head_nf, c_in, fc_dropout) # custom head passed as a partial func with all its kwargs
         elif head_type == 'flatten': 
             self.head = Flatten_Head(self.individual, self.n_vars, self.head_nf, target_window, head_dropout=head_dropout)
-        
-    
+
     def forward(self, z):                  # z: [bs x nvars x seq_len]
         # norm
         if self.revin:  # True

@@ -8,9 +8,6 @@ from scipy.special import eval_legendre
 from sympy import Poly, legendre, Symbol, chebyshevt
 
 
-
-
-
 class QuantileLoss_TFT(nn.Module):
     ## From: https://medium.com/the-artificial-impostor/quantile-regression-part-2-6fdbc26b2629
 
@@ -65,12 +62,6 @@ class QuantileLoss_TFT(nn.Module):
             torch.sum(torch.cat(losses, dim=1), dim=1))
 
         return loss
-
-
-
-
-
-
 
 def legendreDer(k, x):
     def _legendre(k, x):

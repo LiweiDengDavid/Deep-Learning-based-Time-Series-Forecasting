@@ -4,7 +4,6 @@ import numpy as np
 from math import sqrt
 from utils.masking import TriangularCausalMask, ProbMask
 
-
 class DSAttention(nn.Module):
     '''De-stationary Attention'''
 

@@ -3,7 +3,6 @@ import torch.nn.functional as F
 import math
 from hierarchical_mm_tvm_pyraformer import graph_mm as graph_mm_tvm
 
-
 class PyramidalAttention(nn.Module):
     def __init__(self, n_head, d_model, d_k, d_v, dropout, normalize_before, q_k_mask, k_q_mask):
         super(PyramidalAttention, self).__init__()

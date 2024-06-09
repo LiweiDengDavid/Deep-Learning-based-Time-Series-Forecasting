@@ -126,8 +126,8 @@ class Deep_states(nn.Module):
         self.seqlen = args.seq_len
         self.prelen = args.pred_len
         self.stock_number = args.d_feature
-        self.lstm_hidden_dimension = min(int(args.d_dimension/2),32) # 防止维度过大
-        self.space_hidden_dimension = min(args.d_dimension,8)   # 防止维度过大  ！！！这个大的话影响模型速度，影响很大
+        self.lstm_hidden_dimension = min(int(args.d_dimension/2),32)
+        self.space_hidden_dimension = min(args.d_dimension,8)
         self.device = args.device
         self.model_main = Deep_states_model(seqlen=self.seqlen,
                                    prelen=self.prelen,

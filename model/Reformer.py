@@ -47,9 +47,6 @@ class Reformer(nn.Module):
 
     def forward(self, x_enc, x_mark_enc, y_batch, x_mark_dec,
                 enc_self_mask=None, dec_self_mask=None, dec_enc_mask=None):
-        # add placeholder
-        # x_dec 相当于ybatch,这样写会信息泄露
-        # x_enc = torch.cat([x_enc, x_dec[:, -self.pred_len:, :]], dim=1)
         x_dec = torch.zeros_like(y_batch)
         x_enc = torch.cat([x_enc, x_dec[:, -self.pred_len:, :]], dim=1)
         x_mark_enc = torch.cat([x_mark_enc, x_mark_dec[:, -self.pred_len:, :]], dim=1)

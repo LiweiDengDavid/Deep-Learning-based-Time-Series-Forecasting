@@ -4,12 +4,6 @@ import torch.nn.functional as F
 import numpy as np
 
 
-# DLinear是Autoformer和FEDformer中使用位置编码策略与线性层的组合。它首先将原始数据分别分解为移动平均分类量、季节趋势分量。
-# 然后将两个单层线性层应用于每个分量，我们将两个特征相加，得到最终预测结果。通过明确的处理趋势，当数据中存在明显趋势时，DLinear增强了vanilla linear性能。
-# 同时，为了提高LTSF-Linear的性能，当数据集出现分布偏移时，NLinear首先用序列最后一个值减去输入。
-# 然后，输入经过一个线性层，在进行最终预测之前，将减去的部分加回来。NLinear中加减操作可以看做对输入序列的简单标准化
-
-
 class moving_avg(nn.Module):
     """
     Moving average block to highlight the trend of time series
@@ -61,7 +55,7 @@ class DLinear(nn.Module):
         self.individual = None
         self.channels = configs.d_feature
 
-        if self.individual:  # 是否每个对象单独建模，通过简单测试发现，一起建模反而效果更好
+        if self.individual:
             self.Linear_Seasonal = nn.ModuleList()
             self.Linear_Trend = nn.ModuleList()
 
@@ -69,9 +63,6 @@ class DLinear(nn.Module):
                 self.Linear_Seasonal.append(nn.Linear(self.seq_len, self.pred_len))
                 self.Linear_Trend.append(nn.Linear(self.seq_len, self.pred_len))
 
-                # Use this two lines if you want to visualize the weights
-                # self.Linear_Seasonal[i].weight = nn.Parameter((1/self.seq_len)*torch.ones([self.pred_len,self.seq_len]))
-                # self.Linear_Trend[i].weight = nn.Parameter((1/self.seq_len)*torch.ones([self.pred_len,self.seq_len]))
         else:
             self.Linear_Seasonal = nn.Linear(self.seq_len, self.pred_len)
             self.Linear_Trend = nn.Linear(self.seq_len, self.pred_len)
@@ -82,9 +73,9 @@ class DLinear(nn.Module):
 
     def forward(self, batch_x, batch_x_mark,batch_y, batch_y_mark):
         # x: [Batch, Input length, Channel]
-        seasonal_init, trend_init = self.decompsition(batch_x)  # 类似fedformer 通过滤波拆解趋势项和季节项
+        seasonal_init, trend_init = self.decompsition(batch_x)
         seasonal_init, trend_init = seasonal_init.permute(0, 2, 1), trend_init.permute(0, 2, 1)
-        if self.individual:  # 是否对每个通道单独建模，通过测试发现，不单独建模效果反而更好
+        if self.individual:
             seasonal_output = torch.zeros([seasonal_init.size(0), seasonal_init.size(1), self.pred_len],
                                           dtype=seasonal_init.dtype).to(seasonal_init.device)
             trend_output = torch.zeros([trend_init.size(0), trend_init.size(1), self.pred_len],
@@ -93,8 +84,8 @@ class DLinear(nn.Module):
                 seasonal_output[:, i, :] = self.Linear_Seasonal[i](seasonal_init[:, i, :])
                 trend_output[:, i, :] = self.Linear_Trend[i](trend_init[:, i, :])
         else:
-            seasonal_output = self.Linear_Seasonal(seasonal_init)  # 直接linear，由输入长度映射到输出长度
-            trend_output = self.Linear_Trend(trend_init)           # 直接linear，由输入长度映射到输出长度
+            seasonal_output = self.Linear_Seasonal(seasonal_init)
+            trend_output = self.Linear_Trend(trend_init)
 
         x = seasonal_output + trend_output
         return x.permute(0, 2, 1)  # to [Batch, Output length, Channel]

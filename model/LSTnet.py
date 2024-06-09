@@ -37,48 +37,27 @@ class LSTnet(nn.Module):
     def pred_onestep(self, x):
 
         batch_size = x.size(0)
-
-        # CNN
-        #   c[batch,1,seq,dim]
         c = x.view(-1, 1, self.seq_len, self.d_feature)
-        #   c[batch,new_dim=50,蒸馏后的seq,1]
-        #   这种CNN处理有点莫名其妙
         c = F.relu(self.conv1(c))
         c = self.dropout(c)
         c = torch.squeeze(c, 3)
 
         # RNN
-
         r = c.permute(2, 0, 1).contiguous()
-        #   r[蒸馏后的seq,batch,new_Dim=50]
-        #   把batch放中间是为了gru操作
         _, r = self.GRU1(r)
-        #   还是只输出一个时间点的隐藏单元
         r = self.dropout(torch.squeeze(r, 0))
-
-        #   r[new_seq,new_dim]
-        # skip-rnn
 
         #   c[batch,new_dim,seq]
         if (self.skip > 0):
-            #   对c的seq维度进行切片
-            #   s[batch,new_dim,切片后的seq:self.pt * self.skip]
-            #   以skip为周期，pt个完整周期
             s = c[:, :, int(-self.pt * self.skip):].contiguous()
-            #   s[batch,dim=50,self.pt,self.skip]把一个长的seq拆成几个完整的周期
             s = s.view(batch_size, self.hidC, int(self.pt), self.skip)
-
-            #   s[pt表示完整周期的个数,batch,skip表示一个周期的长度,dim]
             s = s.permute(2, 0, 3, 1).contiguous()
-            #   s[pt,batch*skip,dim],扩增了batch-size,也就是让seq=pt，找周期和周期之间的时间先后关系，h_1来自x_1 h_2来自x_(1+skip)即下一个周期的对应值
-            #   这里源代码可能写错了s[skip,batch*pt,dim]batch扩增pt倍而不是skip倍
+
             s = s.view(int(self.skip), batch_size * self.pt, self.hidC)
-            #   gru后：s[1,batch*pt,dim]也就是每一个独立周期输出一个隐藏单元
             _, s = self.GRUskip(s)
-            #   有多少个周期就输出多少个隐藏单元
             s = s.view(batch_size, self.pt * self.hidS)
             s = self.dropout(s)
-            #   把普通GRU对于每一个长序列的隐藏层结果以及skip-gru对于长序列中每个周期序列的隐藏层结果全部拼接起来
+
             r = torch.cat((r, s), 1)
 
         res = self.linear1(r)
@@ -97,12 +76,8 @@ class LSTnet(nn.Module):
 
     def forward(self, x_enc, x_mark_enc, x_dec, x_mark_dec):
         #   x[batch,seq,dim]
-        #   先初始化生成一个预测矩阵：
+        #   First initialise to generate a prediction matrix：
         pred_zero = torch.zeros_like(x_dec[:, -self.pred_len:, :]).float()
-        # ---------------------------------------------
-        #   原数据矩阵的[I/2:I]拼上长度为[O]的零矩阵
-        #   这样改应该更合理一点
-        # ---------------------------------------------
         x_cat_pred = torch.cat([x_enc[:, :self.seq_len, :], pred_zero], dim=1).float().to(x_dec.device)
 
         for i in range(self.pred_len):

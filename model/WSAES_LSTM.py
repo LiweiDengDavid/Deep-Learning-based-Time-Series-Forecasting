@@ -69,7 +69,7 @@ class WSAES_LSTM(nn.Module):
             nn.ReLU()
         )
     def Wavelet_transform(self,data):
-        # 由于小波变换的包好像不能对tensor类别操作，这里将数据转成numpy，后面再转回来
+
         data = data.permute(0,2,1)
         input_data_length = data.shape[-1]
         batch_size = data.shape[0]
@@ -87,12 +87,6 @@ class WSAES_LSTM(nn.Module):
         return data_without_noise
 
     def SAE(self,epoch,input):
-        # input shape batchsize，seq——len，dim，通过sae（两次全连接，重构输入）
-        # 论文中提出，sae的训练是训练了一层后才开始训练第二层，
-        # 为了便于训练，我把epoch作为参数传入，总的epoches拆成5等分，
-        # 第一等分主要是训练第一个sae，训练完后训练第二个sae，
-        # 注意，第二个sae的输入是一个sae的隐藏层！！！！！，后面依次类推
-        # 全连接对stock——number维度操作！！！！
         if epoch < int(self.total_pre_train_epoch/5 * 1):
             output = self.sae1_become_hidden(input)
             output = self.sae1_become_original(output)
@@ -129,10 +123,7 @@ class WSAES_LSTM(nn.Module):
         return output
 
     def LSTM_PROCEED(self,input):
-        # input shape batchsize,seq_len,dim
-        # 这里使用多步滚动预测，即用seqlen预测第seqlen+1天，然后1---（seqlen+1）共seqlen天去预测第seqlen+2天
         input = input.permute(0,2,1)
-        # lstm的输入维度；batchsize，dim，seq——len，对seq-len操作
         prediction = torch.zeros(size=(input.shape[0],input.shape[1],self.pre_len)).to(self.device)
 
         for i in range(self.pre_len):
@@ -142,7 +133,7 @@ class WSAES_LSTM(nn.Module):
             a,b = input,output
             input = torch.cat((input,output),dim=-1)
 
-        prediction = prediction.permute(0,2,1) # 变回batchsize，prelen，dim
+        prediction = prediction.permute(0,2,1)
 
         return prediction
 
@@ -154,7 +145,6 @@ class WSAES_LSTM(nn.Module):
 
 
 def Wavelet(data):
-        # 由于小波变换的包好像不能对tensor类别操作，这里将数据转成numpy，后面再转回来
     data = data.permute(0,2,1)
     input_data_length = data.shape[-1]
     batch_size = data.shape[0]

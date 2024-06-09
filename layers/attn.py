@@ -95,7 +95,7 @@ class TwoStageAttentionLayer(nn.Module):
     def forward(self, x):
         #Cross Time Stage: Directly apply MSA to each dimension
         batch = x.shape[0]
-        time_in = rearrange(x, 'b ts_d seg_num d_model -> (b ts_d) seg_num d_model')  # 将bs和dim通道融合
+        time_in = rearrange(x, 'b ts_d seg_num d_model -> (b ts_d) seg_num d_model')
         time_enc = self.time_attention(
             time_in, time_in, time_in
         )
@@ -107,10 +107,8 @@ class TwoStageAttentionLayer(nn.Module):
         #Cross Dimension Stage: use a small set of learnable vectors to aggregate and distribute messages to build the D-to-D connection
         dim_send = rearrange(dim_in, '(b ts_d) seg_num d_model -> (b seg_num) ts_d d_model', b = batch)
         batch_router = repeat(self.router, 'seg_num factor d_model -> (repeat seg_num) factor d_model', repeat = batch)
-        # batch_router 随机初始化，然后repeat batchsize次，参与self.dim_receive的运算
         dim_buffer = self.dim_sender(batch_router, dim_send, dim_send)
         dim_receive = self.dim_receiver(dim_send, dim_buffer, dim_buffer)
-        # 论文中写道，这样attention能够减少计算量 可以理解为dim_send的自注意力，只是为了减少运算量拆成了两次，具体好处还是有点不明白
         dim_enc = dim_send + self.dropout(dim_receive)
         dim_enc = self.norm3(dim_enc)
         dim_enc = dim_enc + self.dropout(self.MLP2(dim_enc))

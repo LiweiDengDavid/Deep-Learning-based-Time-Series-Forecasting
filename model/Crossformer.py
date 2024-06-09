@@ -27,7 +27,7 @@ class Crossformer(nn.Module):
         self.win_size = configs.win_size
 
         # The padding operation to handle invisible sgemnet length
-        self.pad_seq_len = ceil(1.0 * self.seq_len / self.seg_len) * self.seg_len  # 如果不能完全分割而无残留，则舍弃残留
+        self.pad_seq_len = ceil(1.0 * self.seq_len / self.seg_len) * self.seg_len
         self.pad_pred_len = ceil(1.0 * self.pred_len / self.seg_len) * self.seg_len
         self.seq_len_add = self.pad_seq_len - self.seq_len
 
@@ -49,18 +49,15 @@ class Crossformer(nn.Module):
 
         batch_size = batch_x.shape[0]
         x_seq = self.enc_value_embedding(batch_x)
-        # 把原始序列切成seg_len份，相当于每份长度为seqlen/seg_len,然后展平前面维度，时间维度切割后的个数维度也参与展平，最后仅剩两个维度，然后将每份长度映射到256
-        x_seq += self.enc_pos_embedding  # encoder的位置信息
+        x_seq += self.enc_pos_embedding  # Location information for encoder
         x_seq = self.pre_norm(x_seq)
         
         enc_out = self.encoder(x_seq)
-        # encoder 为同一模块重复多次（参数不同），为跨时间维度模块
+        # encoder is the same module repeated multiple times (with different parameters), and is a module that spans time dimensions
 
         dec_in = repeat(self.dec_pos_embedding, 'b ts_d l d -> (repeat b) ts_d l d', repeat = batch_size)
-        # 相当于重复第一个维度为bachsize，便于后续参与模块运算
+        # It is equivalent to repeating the first dimension as bachsize to facilitate subsequent participation in modular arithmetic
 
         predict_y = self.decoder(dec_in, enc_out)
-        # decoder 通过对encoder的多个输出进行自下而上（看论文）的处理。
-
 
         return predict_y[:, :self.pred_len, :]

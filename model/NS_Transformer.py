@@ -5,7 +5,7 @@ from layers.NS_SelfAttention_Family import DSAttention, AttentionLayer
 from layers.Embed import DataEmbedding
 
 
-# 计算τ和△
+# Calculate τ and ∆
 class Projector(nn.Module):
     '''
     MLP to learn the De-stationary factors

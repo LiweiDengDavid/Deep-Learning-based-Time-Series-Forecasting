@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 
-from layers.autoformer_encdec import Encoder,Decoder
+from layers.Autoformer_EncDec import Encoder,Decoder
 from layers.tools import SeriesDecomp
 
 
@@ -12,8 +12,8 @@ class Autoformer(nn.Module):
         self.pred_len = pred_len
         self.label_len = label_len
 
-        #-------------------------------------------
-        #   时间拆解序列，encoder和decoder
+        # -------------------------------------------
+        # Time disassembly sequences, encoder and decoder
         #-------------------------------------------
 
         self.decomp = SeriesDecomp(mov_avg)
@@ -23,59 +23,34 @@ class Autoformer(nn.Module):
 
     def forward(self, enc_x, enc_mark, y, y_mark):
         # ---------------------------------------------
-        #   模型输入：
-        #   enc_x, enc_mark, dec_x, dec_mark
-        #   enc_x：归一化后数据的长度为【I】
-        #   enc_mark：时间索引数据 长度为【I】
-        #   dec_x：归一化后的X_des [I/2+O]
-        #   dec_mark:时间索引数据 长度为【I/2+O】
+        # Model inputs:
+        # enc_x, enc_mark, dec_x, dec_mark
+        # enc_x: normalised data Length is [I]
+        # enc_mark: time-indexed data length of [I]
+        # dec_x: normalised x_des [I/2+O]
+        # dec_mark: time-indexed data Length [I/2+O]
         # ---------------------------------------------
 
         dec_inp = torch.zeros_like(y[:, -self.pred_len:, :]).float()
         # ---------------------------------------------
-        #   原数据矩阵的[I/2:I]拼上长度为[O]的零矩阵
-        #   这样改应该更合理一点
+        # The [I/2:I] of the original data matrix is spliced with a zero matrix of length [O].
+        # This should make more sense.
         # ---------------------------------------------
-
-        # dec_inp = torch.cat([batch_y[:, self.label_len:2*self.label_len, :], dec_inp], dim=1).float().to(self.device)
 
         dec_x = torch.cat([y[:, :self.label_len, :], dec_inp], dim=1).float().to(y.device)
         dec_mark = y_mark
-        #-------------------------------------------
-        #   编码器的输入只要归一化后的数据 长度为【I】
-        #   enc_mark的作用仅仅是embedding来使用的
-        #   而embedding这一项在时序数据中可以天然的丢弃掉
-        #-------------------------------------------
+        # -------------------------------------------
+        # The encoder input is just the normalised data length [I]
+        # The enc_mark is only used by embedding.
+        # And the embedding item can be naturally discarded in the timing data.
+        # -------------------------------------------
         enc_out = self.encoder(enc_x, enc_mark)
 
-        # ---------------------------------------------
-        #   根据paper的部分初始化的部分，mean和zero都要填充占位
-        #   mean的长度【pred_len】即[O]
-        #   zero的长度【pred_len】即[O]
-        # ---------------------------------------------
         mean = torch.mean(enc_x, dim=1).unsqueeze(1).repeat(1,self.pred_len, 1)
         zeros = torch.zeros([dec_x.shape[0], self.pred_len, dec_x.shape[2]], device=dec_x.device)
-
-        #-----------------------------------------
-        #   这里的输入时序拆解的数据【I/2，I】，只对于前半部分进行拆解
-        #-----------------------------------------
         trend, season = self.decomp(dec_x[:,:-self.pred_len, :])
-
-        #------------------------------------------------
-        #   初始化trend和season
-        #   维度【I/2+O】，其中前【I/2，I】由原始数据拆解得到，【I，O】由均值或zero拼接得到
-        #------------------------------------------------
         trend = torch.cat([trend, mean], dim=1)
         season = torch.cat([season, zeros], dim=1)
-
-
-        #------------------------------------------------
-        #   到解码器才需要用到初始化的trend和season数据
-        #   编码器是只需要原始数据作为输入的
-        #------------------------------------------------
         dec_out = self.decoder(season, trend, dec_mark, enc_out)
 
-        # ------------------------------------------------------
-        #   输出最终的预测部分结果
-        # ------------------------------------------------------
         return dec_out[:,-self.pred_len:, :]

@@ -70,7 +70,7 @@ class EXP_arima:
         np.save('./checkpoint/'+self.model_name+'/'+self.data_name+'test_preds',preds)
         np.save('./checkpoint/'+self.model_name+'/'+self.data_name+'test_trues',trues)
 
-        # 创建csv文件记录训练过程
+        # Create a csv file to record the training process
         if not os.path.isdir('./results/'):
             os.mkdir('./results/')
 

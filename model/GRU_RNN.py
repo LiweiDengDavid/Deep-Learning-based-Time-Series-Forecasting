@@ -5,7 +5,6 @@ import torch.nn as nn
 from torch.optim import SGD
 
 
-
 class GRU_RNN_Model(nn.Module):
     def __init__(self, arg):
         super(GRU_RNN_Model, self).__init__()

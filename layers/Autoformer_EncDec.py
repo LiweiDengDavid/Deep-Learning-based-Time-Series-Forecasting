@@ -5,7 +5,6 @@ import math
 import numpy as np
 from layers.SelfAttention_Family import FullAttention
 
-
 class my_Layernorm(nn.Module):
     """
     Special designed layernorm for the seasonal part
@@ -58,26 +57,21 @@ class series_decomp(nn.Module):
 
 
 class series_decomp_multi(nn.Module):
-    #MOEdecmop模块，就是一系列大小不同的平均滤波器
     """
     Series decomposition block
     """
     def __init__(self, kernel_size):
         super(series_decomp_multi, self).__init__()
-        #一系列不同大小的卷积核
         self.moving_avg = [moving_avg(kernel, stride=1) for kernel in kernel_size]
         self.layer = torch.nn.Linear(1, len(kernel_size))
 
     def forward(self, x):
         moving_mean=[]
         for func in self.moving_avg:
-            #   等长卷积，卷积前后不改变时间维度的大小
             moving_avg = func(x)
             moving_mean.append(moving_avg.unsqueeze(-1))
         moving_mean=torch.cat(moving_mean,dim=-1)
-        #确定每个卷积核的权重，然后基于权重对于每个核的平均结果加权求和。
         moving_mean = torch.sum(moving_mean*nn.Softmax(-1)(self.layer(x.unsqueeze(-1))),dim=-1)
-        #res就是季节项
         res = x - moving_mean
         return res, moving_mean
 
@@ -105,7 +99,6 @@ class EncoderLayer(nn.Module):
         self.conv2 = nn.Conv1d(in_channels=d_ff, out_channels=d_model, kernel_size=1, bias=False)
 
         if isinstance(moving_avg, list):
-            #对应Fedformer论文中的MOEdecmop，即一系列不同大小的平均滤波器
             self.decomp1 = series_decomp_multi(moving_avg)
             self.decomp2 = series_decomp_multi(moving_avg)
         else:
@@ -173,9 +166,6 @@ class TD_encoderlayer(nn.Module):
 
 
 class Encoder(nn.Module):
-    """
-    Autoformer encoder，Fedformer也是套了Autoformer的模子，只是把里面的attention结构替换掉了
-    """
     def __init__(self, attn_layers, conv_layers=None, norm_layer=None):
         super(Encoder, self).__init__()
         self.attn_layers = nn.ModuleList(attn_layers)
@@ -299,12 +289,6 @@ class TD_decoderlayer(nn.Module):
 
 
 class Trend_process(nn.Module):
-    '''
-
-    fedformer的实验4 trend部分处理
-
-    '''
-
     def __init__(self,Block, norm_layer=None, projection_s=None,projection_t=None):
         super(Trend_process, self).__init__()
         self.trend_block = Block
@@ -315,14 +299,13 @@ class Trend_process(nn.Module):
         assert p <= 4, 'thetas_dim is too big.'
         T = torch.tensor(np.array([t ** i for i in range(p)])).float().to(device)
         trend_output = torch.zeros(thetas.shape[0], thetas.shape[1], T.shape[-1]).to(device)
-        for i in range(len(thetas)):  # 由于增加了batch维度，这里对batch里面的每个样本都进行一次与矩阵T的相乘
+        for i in range(len(thetas)):
             trend_output[i] = thetas[i].mm(T.to(device))
         return trend_output
 
     def linear_space(self,seq_len):
         horizon = seq_len
         return np.arange(0, horizon) / horizon
-
 
     def forward(self, x, x_mask=None, cross_mask=None):
 

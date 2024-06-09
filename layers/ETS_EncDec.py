@@ -10,7 +10,6 @@ import math, random
 from layers.ETSmodules import Feedforward
 from layers.exponential_smoothing import ExponentialSmoothing
 
-
 class GrowthLayer(nn.Module):
 
     def __init__(self, d_model, nhead, d_head=None, dropout=0.1, output_attention=False):

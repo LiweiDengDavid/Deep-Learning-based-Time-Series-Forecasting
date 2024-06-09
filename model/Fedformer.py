@@ -34,10 +34,6 @@ class Fedformer(nn.Module):
         else:
             self.decomp = series_decomp(kernel_size)
 
-        # Embedding
-        # The series-wise connection inherently contains the sequential information.
-        # Thus, we can discard the position embedding of transformers.
-        # embedding还有的作用就是调整输入维度
         self.enc_embedding = DataEmbedding_wo_pos(configs.d_feature, configs.d_model, configs.embed, configs.freq,
                                                   configs.dropout)
         self.dec_embedding = DataEmbedding_wo_pos(configs.d_feature, configs.d_model, configs.embed, configs.freq,
@@ -65,18 +61,7 @@ class Fedformer(nn.Module):
                                             seq_len=self.label_len+self.pred_len,
                                             modes=configs.modes,
                                             mode_select_method=configs.mode_select)
-            # encoder_self_att = FourierCrossAttention(in_channels=configs.d_model,
-            #                                           out_channels=configs.d_model,
-            #                                           seq_len_q=self.seq_len,
-            #                                           seq_len_kv=self.seq_len,
-            #                                           modes=configs.modes,
-            #                                           mode_select_method=configs.mode_select)
-            # decoder_self_att = FourierCrossAttention(in_channels=configs.d_model,
-            #                                           out_channels=configs.d_model,
-            #                                           seq_len_q=self.seq_len//2+self.pred_len,
-            #                                           seq_len_kv=self.seq_len//2+self.pred_len,
-            #                                           modes=configs.modes,
-            #                                           mode_select_method=configs.mode_select)
+
 
             decoder_cross_att = FourierCrossAttention(in_channels=configs.d_model,
                                                       out_channels=configs.d_model,
@@ -133,17 +118,9 @@ class Fedformer(nn.Module):
         # decomp init
         mean = torch.mean(x_enc, dim=1).unsqueeze(1).repeat(1, self.pred_len, 1)
         zeros = torch.zeros([x_dec.shape[0], self.pred_len, x_dec.shape[2]]).to(device)  # cuda()
-        # 把X_enc分解了
         seasonal_init, trend_init = self.decomp(x_enc)
-        # decoder input，有一点问题是应该这里的均值使用x_dec来求解的以及需要分解的应该是x_dec，不应该是x_enc。不过彼此是包含关系，应该没有影响
-        #这里的目的是为了作decoder的输入
-        #趋势项后面拼接均值
-        #季节项后面拼接0
         trend_init = torch.cat([trend_init[:, -self.label_len:, :], mean], dim=1)
-        #给季节项扩充一下，需要预测部分用0来占位
         seasonal_init = F.pad(seasonal_init[:, -self.label_len:, :], (0, 0, 0, self.pred_len))
-        # enc
-        # embedding 7 -> 512
         enc_out = self.enc_embedding(x_enc, x_mark_enc)
         enc_out, attns = self.encoder(enc_out, attn_mask=enc_self_mask)
         # dec

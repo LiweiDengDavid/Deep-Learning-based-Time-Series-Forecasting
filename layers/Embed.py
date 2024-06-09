@@ -4,7 +4,6 @@ import torch.nn.functional as F
 from torch.nn.utils import weight_norm
 import math
 
-
 class PositionalEmbedding(nn.Module):
     def __init__(self, d_model, max_len=5000):
         super(PositionalEmbedding, self).__init__()
@@ -304,8 +303,6 @@ class DataEmbedding_pyraformer(nn.Module):
 
 
 """The CustomEmbedding is used by the electricity dataset and app flow dataset for long range forecasting."""
-
-
 class CustomEmbedding(nn.Module):
     def __init__(self, c_in, d_model, temporal_size, seq_num, dropout=0.1):
         super(CustomEmbedding, self).__init__()

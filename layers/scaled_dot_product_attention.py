@@ -1,6 +1,7 @@
 from torch import nn
 import torch
 
+
 class ScaledDotProductAttention(nn.Module):
     """Defines scaled dot product attention layer.
 

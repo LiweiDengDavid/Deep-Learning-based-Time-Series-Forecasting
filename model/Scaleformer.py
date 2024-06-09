@@ -125,7 +125,7 @@ class Scaleformer(nn.Module):
                 dec_out = dec_out - mean
 
             # redefining the inputs to the decoder to be scale aware
-            trend_init = torch.zeros_like(dec_out) # 不同于Fedformer通过滤波得到trend，这里直接用全零矩阵，可能是因为后续encoder，decoder的输入都是去均值化的。
+            trend_init = torch.zeros_like(dec_out) #
             seasonal_init = dec_out
 
             enc_out = self.enc_embedding(enc_out, x_mark_enc[:, scale//2::scale], scale=scale, first_scale=scales[0], label_len=label_len)
@@ -136,9 +136,9 @@ class Scaleformer(nn.Module):
 
             dec_out_coarse = dec_out_coarse + mean
             outputs.append(dec_out_coarse[:, -self.pred_len//scale:, :])
-            # 将每次scale生成的decoder_output 收集起来，后续计算损失使用的是最后一个scale生成的decoder_output
+            # Collect the decoder_output from each scale, and use the decoder_output from the last scale for subsequent loss calculations.
 
-        # 由于最后一次scale为1，最后一次的结果没有经过滤波，可作为最终的预测结果
+        # Since the last scale is 1, the last result is not filtered and can be used as the final prediction result
         prediction = dec_out_coarse[:, -self.pred_len // scale:, :]
         return prediction
 

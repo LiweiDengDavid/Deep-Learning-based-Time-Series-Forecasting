@@ -5,7 +5,6 @@ from layers.autocorrelation import AutoCorrelationLayer, AutoCorrelation
 from layers.embeded import DataEmbedding
 from layers.tools import LayerNorm, SeriesDecomp
 
-
 class EncoderLayer(nn.Module):
     def __init__(self, d_model, d_ff, mov_avg, n_heads, factor, dropout):
         super(EncoderLayer, self).__init__()
