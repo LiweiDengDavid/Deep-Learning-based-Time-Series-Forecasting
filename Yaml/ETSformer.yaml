@@ -1,0 +1,5 @@
+K: 3
+output_attention: False
+std: 0.2
+e_layers: 2
+d_layers: 2

@@ -1,0 +1,8 @@
+cut_freq: 0
+base_T: 24
+H_order: 2
+Real: False
+train_mode: 0 # train on y(mode 0) or on xy(mode 1) or (on y first then on y)(mode 2)
+reconstruct: False # reconstruct task
+individual: False
+

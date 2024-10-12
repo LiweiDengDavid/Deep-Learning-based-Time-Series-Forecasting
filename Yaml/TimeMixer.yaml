@@ -1,0 +1,11 @@
+channel_independence_timemixer: 1 #'0: channel dependence 1: channel independence for FreTS model'
+decomp_method: 'moving_avg' # method of series decompsition, only support moving_avg or dft_decomp
+use_norm_timemixer: 1 #whether to use normalize; True 1 False 0
+down_sampling_layers: 3 # num of down sampling layers
+down_sampling_window: 2 # down sampling window size
+down_sampling_method: 'avg' # down sampling method, only support avg, max, conv
+use_future_temporal_feature: 0 # whether to use future_temporal_feature; True 1 False 0
+
+
+
+

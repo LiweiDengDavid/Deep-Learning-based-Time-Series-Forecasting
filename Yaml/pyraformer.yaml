@@ -1,0 +1,19 @@
+window_size: [4, 4, 4] #The number of children of a parent node.
+CSCM: 'Bottleneck_Construct'　
+embed_type: 'DataEmbedding' # Select Embedding Method:  DataEmbedding  or  CustomEmbedding
+truncate: False #  Whether to remove coarse-scale nodes from the attention structure
+use_tvm: False # Whether to use TVM.
+decoder: 'FC' #  selection: [FC, attention]
+inner_size: 3 # Number of similar nodes in the same layer that can transmit information
+device: torch.device("cuda" if torch.cuda.is_available() else "cpu")
+d_inner_hid: 256
+d_k: 128 #  Number of key-value pairs
+d_v: 128 #value Number of key-value pairs
+d_bottleneck: 128
+n_layer: 4
+
+
+
+
+
+
