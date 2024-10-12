@@ -4,7 +4,7 @@ A pytorch implementation for the paper: ' *Deep Learning-based Time Series Forec
 
 # Introduction
 
-![](\image\process.jpg)
+![](/image/process.jpg)
 
 # Model Statics 
 
