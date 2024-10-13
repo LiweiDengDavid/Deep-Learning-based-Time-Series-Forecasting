@@ -85,7 +85,6 @@ Xiaobao Song, Liwei Deng,Hao Wang*, Yaoan Zhang, Yuxin He and Wenming Cao *“De
 
 # Acknowledgments
 
-We express our gratitude to the following members for their contributions to the project, completed under the guidance of Professor [Hao Wang](haowang@szu.edu.cn):
+We express our gratitude to the following members for their contributions to the project, completed under the guidance of Professor [Hao Wang](https://tccofwang.github.io/index.html):
 
 [Xiaobao Song](2840329517@qq.com)， [Liwei Deng](liweidengdavid@gmail.com)，[Yaoan Zhang](2291149420@qq.com)，[Junhao Tan](827092078@qq.com)，[Hongbo Qiu](2023280567@email.szu.edu.cn)，[Xinhe Niu](Jack1299952745@gmail.com)
-

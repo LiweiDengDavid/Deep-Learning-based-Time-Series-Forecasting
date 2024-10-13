@@ -15,7 +15,7 @@ device=torch.device('cuda'if torch.cuda.is_available() else 'cpu')
 def get_args():
     parser = argparse.ArgumentParser(description='Time Series Forecasting')
     # Parameters relating to the experimental model
-    parser.add_argument('--model_name', default='Fedformer', type=str, help='[autoformer,Fedformer,LSTnet,Deepar,TCN,informer,TDformer,reformer,logtrans,TFT\
+    parser.add_argument('--model_name', default='autoformer', type=str, help='[autoformer,Fedformer,LSTnet,Deepar,TCN,informer,TDformer,reformer,logtrans,TFT\
         ,CNN_1D,GRU_RNN,SAE,Autoencoder,Deepssm,Pyraformer,Aliformer,Transformer,Nbeat,deep_states,SSD,ETSformer,Arima,AST,WSAES_LSTM,\
         PatchTST,Scaleformer,DLinear,Crossformer,Triformer,NS_Transformer,koopa,iTransformer,FITS,TimeMixer]')
 
